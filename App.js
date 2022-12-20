@@ -1,65 +1,87 @@
 import React from 'react';
-import { Block } from './Block';
+import { Collection } from './Collection'
+import { useEffect, useState } from 'react';
+
 import './index.scss';
 
+const cats = [
+  { "name": "Все" },
+  { "name": "Море" },
+  { "name": "Горы" },
+  { "name": "Архитектура" },
+  { "name": "Города" }
+];
+
 function App() {
-  const [fromCurrency, setFromCurrency] = React.useState('RUB');
-  const [toCurrency, setToCurrency] = React.useState('USD');
-  const [fromPrice, setFromPrice] = React.useState(0);
-  const [toPrice, setToPrice] = React.useState(1);
+  const [categoryId, setCategoryId] = useState(0);
+  const [page, setPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchValue, setSearchValue] = useState('');
+  const [collections, setCollections] = useState([]);
 
-  // const [rates, setRates] = React.useState([]);
-  const ratesRef = React.useRef({})
+  useEffect(() => {
+    setIsLoading(true);
 
-  React.useEffect(() => {
-    // Апишка не рабочая, если нужно будет искать другую
-    fetch('https://cdn.cyr.su/api/latest.json')
-      .then((res) => res.json())
-      .then((json) => {
-        // setRates(json.quotes);
-        ratesRef.current = json.quotes;
-        onChangeToPrice(1);
-      })
-      .catch((err) => {
-        console.warn(err);
-        alert('Не удалось получить информацию')
-      });
-  }, []);
+    const category = categoryId ? `category=${categoryId}` : '';
 
-  const onChangeFromPrice = (value) => {
-    const price = value / ratesRef.current[fromCurrency];
-    const result = price * ratesRef.current[toCurrency];
-    setToPrice(result.toFixed(3));
-    setFromPrice(value);
-  };
+    fetch(`https://63a1e353ba35b96522eafea6.mockapi.io/photo_collections?page=${page}&limit=3&${category}`)
+    .then((res) => res.json())
+    .then((json) => {
+      setCollections(json);
+    })
+    .catch((err) => {
+      console.warn(err);
+      alert('Ошибка при получении данных')
+    })
+    .finally(() => setIsLoading(false))
+  }, [categoryId, page]);
 
-  const onChangeToPrice = (value) => {
-    const price1 = ratesRef.current[fromCurrency] / ratesRef.current[toCurrency];
-    const price = price1 * value; 
-    setToPrice(value);
-    setFromPrice(price.toFixed(3));
-  };
-
-  React.useEffect(() => {
-    onChangeFromPrice(fromPrice);
-  }, [fromCurrency]);
-
-  React.useEffect(() => {
-    onChangeToPrice(toPrice);
-  }, [toCurrency]);
 
   return (
     <div className="App">
-      <Block 
-        value={fromPrice} 
-        currency={fromCurrency} 
-        onChangeCurrency={setFromCurrency} 
-        onChangeValue={onChangeFromPrice}/>
-      <Block 
-        value={toPrice} 
-        currency={toCurrency} 
-        onChangeCurrency={setToCurrency}
-        onChangeValue={onChangeToPrice}/>
+      <h1>Моя коллекция фотографий</h1>
+      <div className="top">
+        <ul className="tags">
+          {
+            cats.map((obj, i) => (
+              <li 
+                onClick={() => setCategoryId(i)}
+                className={categoryId === i ? 'active' : ''} 
+                key={obj.name}>{obj.name}
+              </li>
+            ))
+          }
+        </ul>
+        <input 
+          value={searchValue}
+          onChange={(e) => setSearchValue(e.target.value)}
+          className="search-input" 
+          placeholder="Поиск по названию" />
+      </div>
+      <div className="content">
+        {isLoading ? (<h2>Идет загрузка...</h2>) : (
+          collections.filter(obj => {
+            return obj.name.toLowerCase().includes(searchValue.toLowerCase())
+          })
+          .map((obj, index) => (
+            <Collection
+              key = {index}
+              name={obj.name}
+              images={obj.photos}
+            />
+          ))
+        )}
+      </div>
+
+      <ul className="pagination">
+        {
+          [...Array(5)].map((_, i) => (
+          <li 
+            className={page === i + 1 ? 'active' : ''}
+            onClick={() => setPage(i + 1)}
+          >{i + 1}</li>))
+        }
+      </ul>
     </div>
   );
 }
